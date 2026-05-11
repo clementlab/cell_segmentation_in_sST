@@ -1,13 +1,21 @@
-# ignore all
+# ignore everything
 *
-# except these files
+
+# always keep this
 !.gitignore
+
+# --- analysis root ---
+!analysis/
+
+# --- specific files ---
 !analysis/bin2cell_nuclei.py
 !analysis/pipeline.smk
 !analysis/STP.py
 
-# except these folders
-!analysis/envs
+# --- environments ---
+!analysis/envs/
 !analysis/envs/**
-!analysis/figures
-!analysis/figures/**
+
+# --- figures ---
+#!analysis/figures/
+#!analysis/figures/**

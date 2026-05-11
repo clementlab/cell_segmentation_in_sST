@@ -1,0 +1,40 @@
+name: jl_snakemake_env2.0
+channels:
+  - conda-forge
+  - bioconda
+  - nvidia
+  - defaults
+dependencies:
+  - conda=24.9.0
+  - python=3.10
+  - snakemake
+  - matplotlib
+  - scikit-image
+  - scikit-learn
+  - numpy>=1.21,<2.0
+  - pandas
+  - tifffile
+  - scipy
+  - csbdeep
+  - anndata
+  - scanpy
+  - shapely
+  - geopandas
+  - stardist
+  - cellpose
+  - python-igraph
+  - squidpy
+  - leidenalg
+  - pytorch=2.1 
+  - pytorch-cuda=12.1
+  - sparse=0.13.0
+  - pillow=8.2.0
+  - scikit-learn
+  - memory-profiler
+  - pip
+  - pip:
+      - bin2cell
+      - celltypist
+      - opencv-python==4.6.0.66
+      - tensorflow[and-cuda]
+

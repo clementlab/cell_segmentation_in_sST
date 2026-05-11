@@ -1,0 +1,30 @@
+name: STP_env
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.10
+  - anndata
+  - numpy<2.0
+  - tensorflow==2.11
+  - pandas
+  - keras==2.11
+  - python-igraph
+  - leidenalg
+  - geopandas
+  - shapely
+  - pip
+  - pip:
+    - opencv-python==4.6.0.66
+    - scipy==1.7.3
+    - scikit-learn==1.0.2
+    - pillow==8.2.0
+    - scikit-image==0.19.2
+    - stardist==0.8.3
+    - cellpose==2.1.1
+    - torch==1.11.0
+    - scanpy==1.9.3
+    - sparse==0.13.0
+    - memory-profiler
+
