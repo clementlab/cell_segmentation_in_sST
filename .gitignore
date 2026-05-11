@@ -19,3 +19,8 @@
 # --- figures ---
 !analysis/figures/
 !analysis/figures/*.ipynb
+
+# --- pathologist rankings ---
+!data/
+!data/patholog_rankings
+!data/patholog_rankings/*
