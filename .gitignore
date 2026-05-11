@@ -17,5 +17,5 @@
 !analysis/envs/**
 
 # --- figures ---
-#!analysis/figures/
-#!analysis/figures/**
+!analysis/figures/
+!analysis/figures/*.ipynb
