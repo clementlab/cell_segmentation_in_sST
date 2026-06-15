@@ -14,6 +14,7 @@ dependencies:
   - leidenalg
   - geopandas
   - shapely
+  - setuptools<81
   - pip
   - pip:
     - opencv-python==4.6.0.66
@@ -27,4 +28,3 @@ dependencies:
     - scanpy==1.9.3
     - sparse==0.13.0
     - memory-profiler
-

@@ -1401,15 +1401,55 @@ rule voronoi_expansion_white_mask_filter:
             else:
                 return MultiPoint(list(points)).convex_hull.buffer(buffer)
 
-        def clip_infinite_voronoi_region(vor, region, bbox):
-            # Convert bbox to shapely Polygon
-            bbox_poly = box(*bbox.bounds)
-            
-            finite_vertices = [vor.vertices[i] for i in region if i >= 0]
+        def voronoi_finite_polygons_2d(vor, radius):
+            if vor.points.shape[1] != 2:
+                raise ValueError("Requires 2D Voronoi input")
 
-            # Take vertices that are >= 0
-            poly = make_cytoplasm_polygon([Point(v) for v in finite_vertices], buffer=0)
-            return poly.intersection(bbox_poly)
+            new_regions = []
+            new_vertices = vor.vertices.tolist()
+            center = vor.points.mean(axis=0)
+            all_ridges = defaultdict(list)
+
+            for (p1, p2), (v1, v2) in zip(vor.ridge_points, vor.ridge_vertices):
+                all_ridges[p1].append((p2, v1, v2))
+                all_ridges[p2].append((p1, v1, v2))
+
+            for point_index, region_index in enumerate(vor.point_region):
+                region = vor.regions[region_index]
+                if -1 not in region:
+                    new_regions.append(region)
+                    continue
+
+                new_region = [vertex for vertex in region if vertex >= 0]
+                for neighbor_index, v1, v2 in all_ridges[point_index]:
+                    if v2 < 0:
+                        v1, v2 = v2, v1
+                    if v1 >= 0:
+                        continue
+
+                    tangent = vor.points[neighbor_index] - vor.points[point_index]
+                    tangent_norm = np.linalg.norm(tangent)
+                    if tangent_norm == 0:
+                        continue
+                    tangent /= tangent_norm
+                    normal = np.array([-tangent[1], tangent[0]])
+                    midpoint = vor.points[[point_index, neighbor_index]].mean(axis=0)
+                    direction = np.sign(np.dot(midpoint - center, normal)) * normal
+                    far_point = vor.vertices[v2] + direction * radius
+
+                    new_region.append(len(new_vertices))
+                    new_vertices.append(far_point.tolist())
+
+                region_vertices = np.asarray([new_vertices[vertex] for vertex in new_region])
+                region_center = region_vertices.mean(axis=0)
+                angles = np.arctan2(
+                    region_vertices[:, 1] - region_center[1],
+                    region_vertices[:, 0] - region_center[0],
+                )
+                new_region = [vertex for _, vertex in sorted(zip(angles, new_region))]
+                new_regions.append(new_region)
+
+            return new_regions, np.asarray(new_vertices)
 
         nuclei_gdf = gpd.read_file(input.nuclei_gdf)
         
@@ -1428,36 +1468,32 @@ rule voronoi_expansion_white_mask_filter:
         
         
 
-        polygons = []
+        vor_regions, vor_vertices = voronoi_finite_polygons_2d(
+            vor,
+            radius=max(xmax - xmin, ymax - ymin) * 2,
+        )
 
-        for region in vor.regions:
-            if len(region) == 0:
-                continue
-            if -1 in region:  # infinite region
-                # approximate by clipping to bounding box
-                polygonal = clip_infinite_voronoi_region(vor, region, bbox)
-            else:
-                polygonal = Polygon([vor.vertices[i] for i in region])
+        polygons = []
+        for region in vor_regions:
+            polygonal = Polygon(vor_vertices[region]).intersection(bbox)
+            if not polygonal.is_empty and not polygonal.is_valid:
+                polygonal = polygonal.buffer(0)
             polygons.append(polygonal)
 
-        vor_gdf = gpd.GeoDataFrame(geometry=[p for p in polygons if p is not None])
-
-        nuclei_gdf['centroid'] = nuclei_gdf.geometry.centroid
-        vor_gdf['cell_id'] = [f"cell_vor_{i+1}" for i, _ in enumerate(vor_gdf.index)]
-        
-        # make a new gdf with geomtry as centorid and shape as geometey
+        nuclei_gdf = nuclei_gdf.copy()
+        nuclei_gdf['nuc_centroid'] = nuclei_gdf.geometry.centroid
         nuclei_gdf['nuc_polygon'] = nuclei_gdf.geometry
-        nuclei_gdf['geometry'] = nuclei_gdf['centroid']
-
-        # add nuclei clustering labels to vor_gdf
-        vor_gdf = gpd.sjoin(vor_gdf, nuclei_gdf, how='left', predicate='contains')
-        if 'index_right0' in vor_gdf.columns:
-            vor_gdf.drop(columns=['index_right0'], inplace=True)
-
-        del nuclei_gdf
-        gc.collect()
-        
-        vor_gdf = vor_gdf.rename(columns={'clusters': 'nuclei_cluster', 'centroid': 'nuc_centroid', 'id': 'nuclei_id'})
+        vor_gdf = gpd.GeoDataFrame(
+            {
+                'cell_id': [f"cell_vor_{i+1}" for i in range(len(polygons))],
+                'nuclei_id': nuclei_gdf['id'].to_numpy(),
+                'nuclei_cluster': nuclei_gdf['clusters'].to_numpy(),
+                'nuc_centroid': nuclei_gdf['nuc_centroid'].to_numpy(),
+                'nuc_polygon': nuclei_gdf['nuc_polygon'].to_numpy(),
+            },
+            geometry=polygons,
+        )
+        vor_gdf = vor_gdf[vor_gdf.geometry.notna() & ~vor_gdf.geometry.is_empty].copy()
         
         # calc cell area
         vor_gdf['area'] = vor_gdf.geometry.area
@@ -1479,7 +1515,14 @@ rule voronoi_expansion_white_mask_filter:
         cyto_obs_mask = adata.obs_names.isin(barcodes_in_cytoplasm['barcode'])
         cyto_adata = adata[cyto_obs_mask,:]
         result_spatial_join.set_index('barcode', inplace=True)
-        cyto_adata.obs =  pd.merge(cyto_adata.obs, result_spatial_join[['cell_id','cell_polygon','nuc_polygon', 'is_within_cell', 'nuc_centroid', 'nuclei_cluster', 'area', 'nuclei_id', 'geometry' ,'index_left']], left_index=True, right_index=True)
+        cyto_adata.obs = pd.merge(
+            cyto_adata.obs,
+            result_spatial_join[
+                ['cell_id', 'cell_polygon', 'nuc_polygon', 'is_within_cell', 'nuc_centroid', 'nuclei_cluster', 'area', 'nuclei_id', 'geometry']
+            ],
+            left_index=True,
+            right_index=True,
+        )
         
         # filter adata to region of interest for better compute time
         mask = (
@@ -1862,6 +1905,7 @@ rule STP_tuned_cyto:
             --cyto_adata {output.cyto_adata} \
             --resource_usage {output.resource_usage} \
             --tuned True \
+            --thres 1.63 \
             --T 200 \
             --T_min 5 \
             --reduction_rate 0.85 \
@@ -1899,6 +1943,7 @@ rule STP_untuned_cyto:
             --cyto_adata {output.cyto_adata} \
             --resource_usage {output.resource_usage} \
             --tuned False \
+            --thres .8 \
             --T 100 \
             --T_min 10 \
             --reduction_rate 0.5 \
@@ -2095,4 +2140,3 @@ rule cyto_plot_gen:
         
         # Save ARI results
         pd.DataFrame(ari_results).to_csv(output.ARI_csv, index=False)
-

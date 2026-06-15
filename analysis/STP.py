@@ -35,6 +35,7 @@ parser.add_argument("--region_y", type=int, nargs=2, required=True)
 parser.add_argument("--cyto_gdf", required=True)
 parser.add_argument("--cyto_adata", required=True)
 parser.add_argument("--T", required=True, type=int)
+parser.add_argument("--thres", required=True, type=float)
 parser.add_argument("--T_min", required=True, type=int)
 parser.add_argument("--reduction_rate", required=True, type=float)
 parser.add_argument("--neighbor_num", required=True, type=int)
@@ -73,27 +74,11 @@ adata_trimmed.obsm['spatial'] = adata_trimmed.obs[['pxl_row_in_fullres', 'pxl_co
 adata_trimmed.obsm['spatial'][:, 0] -= ymin  # row/y
 adata_trimmed.obsm['spatial'][:, 1] -= xmin  # col/x
 
-# Process image as referenced in STP Paper
-# Convert to grayscale
-#gray_img = cv2.cvtColor(cropped_img, cv2.COLOR_RGB2GRAY)
-
-# Apply CLAHE (Contrast Limited Adaptive Histogram Equalization)
-#clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-#clahe_img = clahe.apply(gray_img)
-
-# Apply Otsu thresholding
-#_, otsu_mask = cv2.threshold(clahe_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-# Set pixels below threshold to 0 (background suppression)
-#preprocessed_img = clahe_img.copy()
-#preprocessed_img[clahe_img < otsu_mask] = 0
-
-# Stack grayscale image into 3 channels
-#preprocessed_img_3ch = cv2.merge([preprocessed_img]*3)
-
-
-save_path = './stp_temp/'
-os.makedirs(save_path,exist_ok=True)
+#save_path = './stp_temp/'
+# os.makedirs(save_path,exist_ok=True)
+# STP_utils concatenates filenames directly onto save_path, so keep a trailing slash.
+save_path = "./stp_temp_tuned/" if args.tuned else "./stp_temp_untuned/"
+os.makedirs(save_path, exist_ok=True)
 def monitor_gpu(tf_device_names, tf_usage_history, running_flag):
     while running_flag[0]:
         total_tf = 0
@@ -107,7 +92,7 @@ def monitor_gpu(tf_device_names, tf_usage_history, running_flag):
         tf_usage_history.append(total_tf / 1e6)  # store in MB
         time.sleep(0.1)
 
-def STP_call(adata, img, save_path, T, T_min, reduction_rate, neighbor_num, alpha, beta):
+def STP_call(adata, img, save_path, T, thres, T_min, reduction_rate, neighbor_num, alpha, beta):
     if torch.cuda.is_available():   
         torch.cuda.empty_cache()
         torch.cuda.reset_peak_memory_stats()  
@@ -127,7 +112,7 @@ def STP_call(adata, img, save_path, T, T_min, reduction_rate, neighbor_num, alph
     #t.start()
     start = time.time()
 
-    STP(adata, img, save_path, T=T, T_min=T_min, reduction_rate=reduction_rate, neighbor_num=neighbor_num, alpha=alpha, beta=beta)
+    STP(adata, img, save_path, T=T, T_min=T_min, reduction_rate=reduction_rate, neighbor_num=neighbor_num, alpha=alpha, beta=beta, thres=thres)
     
     
     end = time.time() - start
@@ -153,7 +138,7 @@ def STP_call(adata, img, save_path, T, T_min, reduction_rate, neighbor_num, alph
 # Run STP
 #STP(adata_trimmed, preprocessed_img_3ch, save_path, T=args.T, T_min=args.T_min, reduction_rate=args.reduction_rate, neighbor_num=args.neighbor_num, alpha=args.alpha, beta=args.beta)
 mem_usage, (stats) = memory_usage(
-            (STP_call, (adata_trimmed, cropped_img, save_path, args.T, args.T_min, args.reduction_rate, args.neighbor_num, args.alpha, args.beta,), {}), 
+            (STP_call, (adata_trimmed, cropped_img, save_path, args.T, args.thres, args.T_min, args.reduction_rate, args.neighbor_num, args.alpha, args.beta,), {}),
             retval=True)
         
 print(f"Cellpose Peak memory used: {max(mem_usage):.2f} MB")
