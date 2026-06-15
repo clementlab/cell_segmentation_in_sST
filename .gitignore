@@ -3,6 +3,7 @@
 
 # always keep this
 !.gitignore
+!README.md
 
 # --- analysis root ---
 !analysis/
@@ -24,3 +25,4 @@
 !data/
 !data/patholog_rankings
 !data/patholog_rankings/*
+!data/get.sh
