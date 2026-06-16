@@ -26,3 +26,8 @@
 !data/patholog_rankings
 !data/patholog_rankings/*
 !data/get.sh
+
+# --- final figures ---
+!doc
+!doc/Figure*.pdf
+!doc/resource_usage.pdf
