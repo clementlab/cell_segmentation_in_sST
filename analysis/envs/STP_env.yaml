@@ -1,20 +1,27 @@
 name: STP_env
+# Same env as explicit STP_env.yaml (same pipeline, same pinned pip packages) but tuned to solve quickly
 channels:
   - conda-forge
-  - bioconda
   - defaults
 dependencies:
-  - python=3.10
-  - anndata
+  - python=3.10.13
   - numpy<2.0
-  - tensorflow==2.11
-  - pandas
-  - keras==2.11
-  - python-igraph
-  - leidenalg
-  - geopandas
-  - shapely
-  - setuptools<81
+  - tensorflow=2.11.0=cpu_py310hd1aba9c_1
+  - tensorflow-base=2.11.0=cpu_py310h9fe5a9a_1
+  - tensorflow-estimator=2.11.0=cpu_py310hfed9998_1
+  - keras=2.11.0=pyhd8ed1ab_0
+  - keras-preprocessing=1.1.2=pyhd8ed1ab_1
+  - pandas=2.3.3=py310h0158d43_2
+  - python-igraph=0.10.3=py310hc734324_0
+  - igraph=0.10.3=hb9ddf80_0
+  - leidenalg=0.9.1=py310heca2aa9_0
+  - geopandas=1.1.3=pyhd8ed1ab_0
+  - geopandas-base=1.1.3=pyha770c72_0
+  - defaults::pyogrio=0.10.0=py310hb275d9d_0
+  - libgdal=3.6.3=h9c5bede_7
+  - geos=3.11.2=hcb278e6_0
+  - shapely=2.0.1=py310h056c13c_1
+  - setuptools=80.10.2=pyh332efcf_0
   - pip
   - pip:
     - opencv-python==4.6.0.66
@@ -27,4 +34,4 @@ dependencies:
     - torch==1.11.0
     - scanpy==1.9.3
     - sparse==0.13.0
-    - memory-profiler
+    - memory-profiler==0.61.0
