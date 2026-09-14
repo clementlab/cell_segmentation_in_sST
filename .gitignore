@@ -31,3 +31,7 @@
 !doc
 !doc/Figure*.pdf
 !doc/resource_usage.pdf
+
+# --- demo ---
+!demo
+!demo/*.sh
