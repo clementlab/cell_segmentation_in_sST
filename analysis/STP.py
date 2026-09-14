@@ -18,7 +18,9 @@ import torch
 import threading
 #import tensorflow as tf
 
-sys.path.append("/uufs/chpc.utah.edu/common/home/u1531817/20250523_cell_seg_eval/analysis/dev_files/stp/STP")
+sys.path.append(os.environ.get("STP_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "dev_files/stp/STP"),
+))
 
 from STP_utils import STP
 
