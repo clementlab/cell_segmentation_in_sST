@@ -20,6 +20,23 @@ The tracked repository is centered on a Snakemake workflow plus manuscript figur
 
 This is an analysis repository, not a packaged Python library. The expected usage model is: prepare a Visium HD dataset, choose a region of interest, run the Snakemake workflow in a scratch/output directory, then use the notebooks to assemble manuscript figures.
 
+## Quick Demo
+
+A one-command demo is provided in [`demo/run_demo.sh`](/uufs/chpc.utah.edu/common/home/u1531817/20250523_cell_seg_eval/demo/run_demo.sh). It downloads the public Visium HD Mouse Brain dataset, fetches the pinned STP source, builds the required conda environments, and runs the Snakemake workflow on a small mouse-brain region of interest.
+
+```bash
+cd demo
+./run_demo.sh 4
+```
+
+The numeric argument is the number of cores to give Snakemake. The demo expects an NVIDIA GPU because the workflow uses GPU-backed segmentation libraries; to bypass the GPU preflight check for testing, run:
+
+```bash
+./run_demo.sh --allow-cpu 4
+```
+
+Demo results are written to `demo/run_output/`. The demo data, generated conda environments, third-party checkout, and run outputs are intentionally ignored by git.
+
 ## Segmentation Methods Compared
 
 The main pipeline produces or combines the following segmentation outputs:
@@ -61,21 +78,28 @@ This workflow was built for a Linux/HPC environment and assumes:
 - NVIDIA GPU access for most segmentation methods
 - Enough memory for full-image preprocessing and segmentation
 
-The main environment file is [`analysis/envs/snakemake_env.yaml`](/uufs/chpc.utah.edu/common/home/u1531817/20250523_cell_seg_eval/analysis/envs/snakemake_env.yaml). STP uses a separate environment in [`analysis/envs/STP_env.yaml`](/uufs/chpc.utah.edu/common/home/u1531817/20250523_cell_seg_eval/analysis/envs/STP_env.yaml). An explicit archival environment export is also present as [`analysis/envs/STP_env_explicit.txt`](/uufs/chpc.utah.edu/common/home/u1531817/20250523_cell_seg_eval/analysis/envs/STP_env_explicit.txt).
+The demo uses quick-solving environment specs for normal setup:
+
+- [`analysis/envs/snakemake_quick.yaml`](/uufs/chpc.utah.edu/common/home/u1531817/20250523_cell_seg_eval/analysis/envs/snakemake_quick.yaml) is the driver environment used to launch Snakemake.
+- [`analysis/envs/STP_env.yaml`](/uufs/chpc.utah.edu/common/home/u1531817/20250523_cell_seg_eval/analysis/envs/STP_env.yaml) is the STP per-rule environment. Snakemake builds this automatically under its `--conda-prefix` when STP rules run.
+
+Full solved environment exports used for provenance are tracked separately:
+
+- [`analysis/envs/explicit_envs/snakemake_env_full.yml`](/uufs/chpc.utah.edu/common/home/u1531817/20250523_cell_seg_eval/analysis/envs/explicit_envs/snakemake_env_full.yml)
+- [`analysis/envs/explicit_envs/STP_env_full.yml`](/uufs/chpc.utah.edu/common/home/u1531817/20250523_cell_seg_eval/analysis/envs/explicit_envs/STP_env_full.yml)
+
+These full exports document the solved environments used during development/publication runs, but the demo scripts intentionally point to the smaller quick-solving YAML files.
 
 ### Create the main environment
 
 ```bash
-conda env create -f analysis/envs/snakemake_env.yaml
+conda env create -n snakemake_env -f analysis/envs/snakemake_quick.yaml
 conda activate snakemake_env
 ```
 
-### Optional: create the STP environment separately
+### STP environment
 
-```bash
-conda env create -f analysis/envs/STP_env.yaml
-conda activate STP_env
-```
+Do not create a named STP environment manually for the demo. The Snakemake run uses `--use-conda` and builds the STP rule environment from `analysis/envs/STP_env.yaml` under the configured conda prefix.
 
 ## Important Reproducibility Notes
 
